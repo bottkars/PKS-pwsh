@@ -242,14 +242,14 @@ function Get-PKSclusters {
         [Parameter(Mandatory = $false, ParameterSetName = 'name',
             ValueFromPipelineByPropertyName = $true)]
         [string][alias('clustername')]$name,
-        [Parameter(Mandatory=$false)][ValidateSet('v1','v1beta1')]$apiVersion='v1'
+        [Parameter(Mandatory = $false)][ValidateSet('v1', 'v1beta1')]$apiVersion = 'v1'
     )
     begin {
         $METHOD = "GET"
         $Myself = $MyInvocation.MyCommand.Name.Substring(7)
     }
     process {
-        if ($name){
+        if ($name) {
             $URI = "$($Global:PKS_API_BaseUri):9021/$apiversion/$($Myself)/$name "
         }
         else {
@@ -260,10 +260,88 @@ function Get-PKSclusters {
     end { Write-Output $Response }
 }
 
-function Get-PKSusage {
+
+function Remove-PKSclusters {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$false)][ValidateSet('v1beta1')]$apiVersion='v1beta1'
+        [Parameter(Mandatory = $true, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [string][alias('clustername')]$name,
+        [Parameter(Mandatory = $false)][ValidateSet('v1')]$apiVersion = 'v1'
+    )
+    begin {
+        $METHOD = "DELETE"
+        $Myself = $MyInvocation.MyCommand.Name.Substring(10)
+    }
+    process {
+
+        $URI = "$($Global:PKS_API_BaseUri):9021/$apiversion/$($Myself)/$name "
+
+        $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD | ConvertFrom-Json
+    }    
+    end { Write-Output $Response }
+}
+
+function Update-PKSclusters {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, ParameterSetName = 'name', ValueFromPipelineByPropertyName = $true)]
+        [string][alias('clustername')]$name,
+        [Parameter(Mandatory = $true, ParameterSetName = 'name', ValueFromPipelineByPropertyName = $true)]        
+        [string][alias('kubernetes_worker_instances', 'wi')]
+        [ValidateRange(1, 20)]$worker,
+        [Parameter(Mandatory = $false, ParameterSetName = 'name', ValueFromPipelineByPropertyName = $true)]
+        [alias('ir')][string[]]$insecure_registries,
+        [Parameter(Mandatory = $false)][ValidateSet('v1')]$apiVersion = 'v1'
+    )
+    begin {
+        $METHOD = "PATCH"
+        $Myself = $MyInvocation.MyCommand.Name.Substring(10)
+    }
+    process {
+
+        $BODY = @{
+            "insecure_registries"         = @($insecure_registries)
+            "kubernetes_worker_instances" = $worker
+        } | ConvertTo-Json
+        
+
+        $URI = "$($Global:PKS_API_BaseUri):9021/$apiversion/$($Myself)/$name "
+
+        $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD  -Body $BODY | ConvertFrom-Json
+    }    
+    end { Write-Output $Response }
+}
+
+
+function Get-PKScompute-profiles {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [string][alias('profilename')]$name,
+        [Parameter(Mandatory = $false)][ValidateSet('v1beta1')]$apiVersion = 'v1beta1'
+    )
+    begin {
+        $METHOD = "GET"
+        $Myself = $MyInvocation.MyCommand.Name.Substring(7)
+    }
+    process {
+        if ($name) {
+            $URI = "$($Global:PKS_API_BaseUri):9021/$apiversion/$($Myself)/$name "
+        }
+        else {
+            $URI = "$($Global:PKS_API_BaseUri):9021/$apiversion/$($Myself)"
+        }
+        $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD | ConvertFrom-Json
+    }    
+    end { Write-Output $Response }
+}
+
+function Get-PKSusages {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)][ValidateSet('v1beta1')]$apiVersion = 'v1beta1'
     )
     begin {
         $METHOD = "GET"
@@ -297,6 +375,67 @@ function Get-PKSclusterdetails {
     }
 }
 
+function Get-PKSservice_instances {
+    [CmdletBinding()]
+    param(
+
+    )
+    begin { 
+        $Response = @()
+        $METHOD = "GET"
+        $Myself = $MyInvocation.MyCommand.Name.Substring(7)
+    }
+   
+    process {
+        $URI = "$($Global:PKS_API_BaseUri):9021/$($Myself)"
+        $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD | ConvertFrom-Json
+    }    
+    end {
+        Write-Output $Response  
+    }
+}
+
+function New-PKSclusters {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [string][alias('clustername', 'cn')]$name,
+        [Parameter(Mandatory = $true, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [string][alias('plan_name', 'pn')]$plan,
+        [Parameter(Mandatory = $true, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [string][alias('kubernetes_worker_instances', 'wi')]
+        [ValidateRange(1, 20)]$worker,
+        [Parameter(Mandatory = $true, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [string][alias('kubernetes_master_host', 'km')]$master_fqdn
+    )
+    begin { 
+        $Response = @()
+        $METHOD = "POST"
+        $Myself = $MyInvocation.MyCommand.Name.Substring(7)
+    }
+   
+    process {
+        $Body = @{
+            'name'      = $name
+            'plan_name' = $plan
+            parameters  = @{
+                'kubernetes_master_host'      = $master_fqdn
+                'kubernetes_worker_instances' = $worker
+            }
+        } | ConvertTo-Json
+        $URI = "$($Global:PKS_API_BaseUri):9021/v1/$($Myself)"
+        Write-Verbose ("Invoke-PKSapirequest -uri $URI -Method $METHOD -body $body" | Out-String )
+        $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD -body $Body | ConvertFrom-Json
+    }    
+    end {
+        Write-Output $Response  
+    }
+}
+
 function Invoke-PKSapirequest {
     [CmdletBinding(HelpUri = "")]
     #[OutputType([int])]
@@ -311,7 +450,7 @@ function Invoke-PKSapirequest {
         $Method = 'Get',
         [Parameter(Mandatory = $false, ParameterSetName = 'default')]
         [Parameter(Mandatory = $false, ParameterSetName = 'infile')]
-        $ContentType = 'application/json;charset=utf-8', 
+        $ContentType = 'application/json', 
         [Parameter(Mandatory = $false, ParameterSetName = 'default')]
         $Body,
         [Parameter(Mandatory = $true, ParameterSetName = 'infile')]
@@ -356,11 +495,31 @@ function Invoke-PKSapirequest {
     
     Write-Output $Result.Content
 }
-# POST /api/v0/certificates/generate
+
+# /v1/clusters/{clusterName}/binds/{userName}
 
 
-# GET /api/v0/deployed/director/credentials
+function Get-PKSclusterBinding {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [string][alias('clustername', 'cn')]$name,
+        [Parameter(Mandatory = $false, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [string][alias('username', 'un')]$user,
+        [Parameter(Mandatory = $false)][ValidateSet('v1')]$apiVersion = 'v1'
+    )
+    begin {
+        $METHOD = "GET"
+    }
+    process {
 
+        $URI = "$($Global:PKS_API_BaseUri):9021/$apiversion/clusters/$($name)/binds/$user"
+        $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD | ConvertFrom-Json
+    }    
+    end { Write-Output $Response }
+}
 
 
 <#
