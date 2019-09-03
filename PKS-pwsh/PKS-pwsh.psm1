@@ -242,7 +242,7 @@ function Get-PKSclusters {
         [Parameter(Mandatory = $false, ParameterSetName = 'name',
             ValueFromPipelineByPropertyName = $true)]
         [string][alias('clustername')]$name,
-        [Parameter(Mandatory=$false)][ValidateSet('v1','v1beta1')]$apiVersion
+        [Parameter(Mandatory=$false)][ValidateSet('v1','v1beta1')]$apiVersion='v1'
     )
     begin {
         $METHOD = "GET"
@@ -263,7 +263,7 @@ function Get-PKSclusters {
 function Get-PKSusage {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$false)][ValidateSet('v1beta1')]$apiVersion
+        [Parameter(Mandatory=$false)][ValidateSet('v1beta1')]$apiVersion='v1beta1'
     )
     begin {
         $METHOD = "GET"
