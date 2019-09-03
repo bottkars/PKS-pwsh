@@ -270,12 +270,7 @@ function Get-PKSusage {
         $Myself = $MyInvocation.MyCommand.Name.Substring(7)
     }
     process {
-        if ($name){
-            $URI = "$($Global:PKS_API_BaseUri):9021/$apiversion/$($Myself)/$name "
-        }
-        else {
-            $URI = "$($Global:PKS_API_BaseUri):9021/$apiversion/$($Myself)"
-        }
+        $URI = "$($Global:PKS_API_BaseUri):9021/$apiversion/$($Myself)"
         $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD | ConvertFrom-Json
     }    
     end { Write-Output $Response }
