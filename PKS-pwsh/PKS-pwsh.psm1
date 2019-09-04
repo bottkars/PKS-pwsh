@@ -314,7 +314,7 @@ function Update-PKSclusters {
 }
 
 
-function Get-PKScompute-profiles {
+function Get-PKScompute_profiles {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false, ParameterSetName = 'name',
@@ -325,6 +325,7 @@ function Get-PKScompute-profiles {
     begin {
         $METHOD = "GET"
         $Myself = $MyInvocation.MyCommand.Name.Substring(7)
+        $Myself.Replace('_','-')
     }
     process {
         if ($name) {
