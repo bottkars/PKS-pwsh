@@ -1,7 +1,7 @@
 # PKS-pwsh
 
 
-This is a powwershell module for Managging Pivotal Enterprise Container Service (PKS).
+This is a powershell module for Managging Pivotal Enterprise Container Service (PKS).
 The Modules connect directly to the PKS API and are written in Powershell.
 
 ![pks-pwsh](https://user-images.githubusercontent.com/8255007/64982997-cc553480-d8bf-11e9-8a48-34d2e4a41fd4.gif)
