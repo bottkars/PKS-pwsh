@@ -112,10 +112,6 @@ function Connect-PKSapiEndpoint {
                 }
             }
         }    
-
-        
-
-        $VerbosePreference
         Write-Verbose ($body | Out-String)
         Write-Verbose ( $headers | Out-String ) 
         try {  
@@ -158,45 +154,10 @@ function Connect-PKSapiEndpoint {
             'Authorization' = "Bearer $($Response.access_token)"
         }
         $Global:Refresh_token = $Response.Refresh_token
-        Write-Host "Connected to PKS_API_ with $($Response.Scope)"
+        Write-Host "Connected to $PKS_API_BASEURI with $($Response.Scope)"
         Write-Output $Response
     }
 }
-
-
-<#curl 'http://localhost/oauth/token' -i -X POST \
-    -H 'Accept: application/json' \
-    -H 'Content-Type: application/x-www-form-urlencoded' \
-    -d 'client_id=app&client_secret=appclientsecret&grant_type=refresh_token&token_format=opaque&refresh_token=9655f63edf2e476ebb6abea944111590-r'
-POST /oauth/token HTTP/1.1
-Accept: application/json
-Content-Type: application/x-www-form-urlencoded
-Host: localhost
-
-client_id=app&client_secret=appclientsecret&grant_type=refresh_token&token_format=opaque&refresh_token=9655f63edf2e476ebb6abea944111590-r
-HTTP/1.1 200 OK
-Content-Length: 1140
-Pragma: no-cache
-X-XSS-Protection: 1; mode=block
-X-Frame-Options: DENY
-X-Content-Type-Options: nosniff
-Cache-Control: no-store
-Content-Type: application/json;charset=UTF-8
-
-{
-  "access_token" : "cd29c86b2edf46fba173b3ca4b6687ad",
-  "token_type" : "bearer",
-  "id_token" : "eyJhbGciOiJIUzI1NiIsImprdSI6Imh0dHBzOi8vbG9jYWxob3N0OjgwODAvdWFhL3Rva2VuX2tleXMiLCJraWQiOiJsZWdhY3ktdG9rZW4ta2V5IiwidHlwIjoiSldUIn0.eyJzdWIiOiIxOGFiZjM0YS00Yzc5LTRhMTAtODJmMS1lNjIwMDJlNGVlN2UiLCJhdWQiOlsiYXBwIl0sImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA4MC91YWEvb2F1dGgvdG9rZW4iLCJleHAiOjE1Njc4NTgyNTcsImlhdCI6MTU2NzgxNTA1NywiYW1yIjpbInB3ZCJdLCJhenAiOiJhcHAiLCJzY29wZSI6WyJvcGVuaWQiXSwiZW1haWwiOiI0UmZFRk9AdGVzdC5vcmciLCJ6aWQiOiJ1YWEiLCJvcmlnaW4iOiJ1YWEiLCJqdGkiOiIzNmY5NmU4MDBmYjk0ZDcyOTc0ODdmNDY1MTI2YzIyZSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJjbGllbnRfaWQiOiJhcHAiLCJjaWQiOiJhcHAiLCJncmFudF90eXBlIjoicGFzc3dvcmQiLCJ1c2VyX25hbWUiOiI0UmZFRk9AdGVzdC5vcmciLCJyZXZfc2lnIjoiODI4YmU2ZWYiLCJ1c2VyX2lkIjoiMThhYmYzNGEtNGM3OS00YTEwLTgyZjEtZTYyMDAyZTRlZTdlIiwiYXV0aF90aW1lIjoxNTY3ODE1MDU3fQ.4VKHbNpoD8p2ee0HWscxpI7IEMqtKihiy5sA2etF7iY",
-  "refresh_token" : "9655f63edf2e476ebb6abea944111590-r",
-  "expires_in" : 43199,
-  "scope" : "scim.userids cloud_controller.read password.write cloud_controller.write openid",
-  "jti" : "cd29c86b2edf46fba173b3ca4b6687ad"
-}
-Request Parameters
-
-Parameter	Type	Constraints	Description
-grant_type	String	Required	the type of authentication being used to obtain the token, in this case refresh_token#>
-#https://api.pks.labbuildr.local:9021/actuator/info
 
 
 function Update-PKSAccessToken {
@@ -204,22 +165,69 @@ function Update-PKSAccessToken {
     param(
         $PKS_API_BaseUri = $Global:PKS_API_BaseUri
     )
-    $METHOD = "POST"
-    $URI = "$($PKS_API_BaseUri):8443/oauth/token"
-    
-    $Headers = @{ 'content-type' = "application/vnd.spring-boot.actuator.v2+json; charset=UTF-8"
-        'Accept'                 = "application/json"
+
+    begin { 
+        $METHOD = "POST"
+        $URI = "$($PKS_API_BaseUri):8443/oauth/token"
+        $clientid = 'pks_cli:'
+        $client_encoded = [System.Text.Encoding]::UTF8.GetBytes($clientid)
+        $client_base64 = [System.Convert]::ToBase64String($client_encoded)
+        $headers = @{
+            'content-type'  = "application/x-www-form-urlencoded"
+            'authorization' = "Basic $client_base64"    
+        }  
+        $Body = @{
+            'grant_type'    = "refresh_token"
+            'refresh_token' = $Global:Refresh_token
+            'token_format'  = "opaque"
+        } 
     }
-    try {
-        $Response = Invoke-WebRequest -Headers $Headers -Uri $URI -Method $METHOD -SkipCertificateCheck -ContentType "application/vnd.spring-boot.actuator.v2+json; charset=UTF-8"
+    process
+    { #    client_id=app&client_secret=appclientsecret&grant_type=refresh_token&token_format=opaque&refresh_token=9655f63edf2e476ebb6abea944111590-r 
+        try {  
+            if ($Global:SkipCertificateCheck) {            
+                $Response = Invoke-RestMethod -SkipCertificateCheck `
+                    -Method $METHOD -Headers $headers -Body $body `
+                    -UseBasicParsing -Uri "$($Global:PKS_API_BaseUri):8443/oauth/token" 
+            }   
+            else {
+                $Response = Invoke-RestMethod `
+                    -Method $METHOD -Headers $headers -Body $body `
+                    -UseBasicParsing -Uri "$($Global:PKS_API_BaseUri):8443/oauth/token"
+            }
+        }
+        catch {
+            Get-PKSWebException -ExceptionMessage $_
+            switch ($PsCmdlet.ParameterSetName) {
+                'USER' {
+                    Remove-Variable PKS_API_Credentials
+                } 
+                'CLIENT' {
+                    Remove-Variable PKS_API_ClientCredentials
+                } 
+            }
+            Break
+        }
+    } 
+    End {
+        switch ($PsCmdlet.ParameterSetName) {
+            'Client' {
+                $Global:PKS_API_ClientCredentials = $PKS_API_ClientCredentials
+            }
+            'User' {
+                $Global:PKS_API_Credentials = $PKS_API_Credentials
+            }
+        }
+        
+        $Global:PKS_API_Headers = @{
+            'Authorization' = "Bearer $($Response.access_token)"
+        }
+        $Global:Refresh_token = $Response.Refresh_token
+        Write-Host "Connected to $PKS_API_BASEURI with $($Response.Scope)"
+        Write-Output $Response
     }
-    catch {
-        Get-PKSWebException  -ExceptionMessage $_
-        break
-    }
-    write-verbose ($response | Out-String)
-    write-output $response.content | ConvertFrom-Json
 }
+
 
 
 
@@ -626,14 +634,24 @@ function Disconnect-PKSsession {
     [CmdletBinding()]
     param(
     )
-    $METHOD = "DELETE"
-    $Body = @{ } | ConvertTo-Json -compress
-    Write-Verbose $Body
-    $Myself = ($MyInvocation.MyCommand.Name.Substring(14) -replace "_", "/").ToLower()
-    # $response = Invoke-WebRequest -Method $Method -Uri $Global:PKS_API_BaseUri/api/v0/$Myself -Headers $Global:PKS_API_Headers
-    $URI = "$Global:PKS_API_BaseUri/api/v0/$Myself"
-    $Response = Invoke-PKSapirequest -uri $URI -Method $METHOD -Body $Body
-    ($response | ConvertFrom-Json).session
+    $clientid = 'pks_cli:'
+    $client_encoded = [System.Text.Encoding]::UTF8.GetBytes($clientid)
+    $client_base64 = [System.Convert]::ToBase64String($client_encoded)
+    $headers = @{
+        'authorization' = "Basic $client_base64"    
+    } 
+    $METHOD = "GET"
+    $URI = "$($Global:PKS_API_BaseUri):8443/logout.do"
+    $Parameters = @{
+        Uri             = $Uri
+        Method          = $Method
+        Headers         = $headers
+    }
+
+    if ($Global:SkipCertificateCheck) {
+        $Parameters.Add('SkipCertificateCheck', $True)
+    }
+    Invoke-RestMethod @Parameters
 }
 
 function Get-PKSquotas {
@@ -681,6 +699,31 @@ function New-PKSquotas {
     }
     process {
         $URI = "$($Global:PKS_API_BaseUri):9021/$apiversion/$($Myself)"
+        $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD -Body $BODY 
+    }    
+    end { Write-Output $Response }
+}   
+
+
+function New-PKSUser {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [string][alias('username', 'un')]$user,
+        [Parameter(Mandatory = $false, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [string]$clustername,
+        [Parameter(Mandatory = $false)][ValidateSet('v1beta1')]$apiVersion = 'v1'
+    )
+    begin {
+        $METHOD = "POST"
+        $BODY = @{
+            "user" = $user
+        } | ConvertTo-Json    	
+    }
+    process {
+        $URI = "$($Global:PKS_API_BaseUri):9021/$apiversion/clusters/$clusterName/binds"
         $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD -Body $BODY 
     }    
     end { Write-Output $Response }
