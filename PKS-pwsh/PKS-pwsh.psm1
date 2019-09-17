@@ -785,21 +785,19 @@ function Set-PKSquotas {
 function New-PKSuaaUser {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true, ParameterSetName = 'name',
-            ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'name',ValueFromPipelineByPropertyName = $true)]
         [string][alias('user', 'un')]$username,
-        [Parameter(Mandatory = $true, ParameterSetName = 'name',
-            ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'name',ValueFromPipelineByPropertyName = $true)]
         [string][alias('mail', 'em')]$email,
-        [Parameter(Mandatory = $false, ParameterSetName = 'name',
-            ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'name',ValueFromPipelineByPropertyName = $true)]
         [securestring][alias('pass', 'pw')]$SecurePassword,
-        [Parameter(Mandatory = $false, ParameterSetName = 'name',
-            ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'name',ValueFromPipelineByPropertyName = $true)]
         [string]$familyname,
-        [Parameter(Mandatory = $false, ParameterSetName = 'name',
-            ValueFromPipelineByPropertyName = $true)]
-        [string]$givenname
+        [Parameter(Mandatory = $false, ParameterSetName = 'name',ValueFromPipelineByPropertyName = $true)]
+        [string]$givenname,
+        [Parameter(Mandatory = $false, ParameterSetName = 'name', ValueFromPipelineByPropertyName = $true)]
+        [ValidateSet('pks.clusters.admin', 'pks.clusters.manage')]
+        [string[]]$scopes
     )
     begin {
         $Response = @()
@@ -830,7 +828,12 @@ function New-PKSuaaUser {
         } | ConvertTo-Json    	
         write-verbose ($body | Out-String)
         $URI = "$($Global:PKS_API_BaseUri):8443/Users"
-        $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD -Body $BODY | ConvertFrom-Json
+        $MyResponse += Invoke-PKSapirequest -uri $URI -Method $METHOD -Body $BODY | ConvertFrom-Json
+        if ($scopes){
+            $Membership = Set-PKSUaaGroupMember -userid $MyResponse.id -scopes $scopes
+            $MyResponse = Get-PKSUaaUsers -userid $MyResponse.id
+        }
+        $Response += $MyResponse
     }    
     end { Write-Output $Response }
 } 
