@@ -1,11 +1,17 @@
 # PKS-pwsh
 
-
+## about
 This is a powershell module for Managging Pivotal Enterprise Container Service (PKS).
 The Modules connect directly to the PKS API and are written in Powershell.
+This is an unofficial, community-build module 
 
-![pks-pwsh](https://user-images.githubusercontent.com/8255007/64982997-cc553480-d8bf-11e9-8a48-34d2e4a41fd4.gif)
+![pws-pks1](https://user-images.githubusercontent.com/8255007/65012052-123ce780-d916-11e9-9026-f9058c1c0128.gif)
 
+## naming conventions
+command names are derived from the REST API Endpints and Powershell verb´s conventions
+
+## Pipelining
+all modules shall support Pipelining, where applicable
 
 # getting Started
 
@@ -25,5 +31,12 @@ $connection=Connect-PKSapiEndpoint -PKS_API_URI https://api.pksazure.labbuildr.c
 ```
 
 ## Getting PKS CLuster(s)
+
+Getting a list of PKS Clusters:
+```Powershell
+Get-PKSClustres
+````
+
+
 
 
