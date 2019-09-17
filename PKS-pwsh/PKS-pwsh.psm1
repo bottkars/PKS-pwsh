@@ -59,7 +59,7 @@ function Connect-PKSapiEndpoint {
             
         }  
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
-        if ($force.IsPresent){
+        if ($force.IsPresent) {
             Remove-Variable PKS_API_Headers -ErrorAction SilentlyContinue
             Remove-Variable PKS_API_Headers -ErrorAction SilentlyContinue
             Remove-Variable PKS_API_ClientCredentials -ErrorAction SilentlyContinue
@@ -188,8 +188,8 @@ function Update-PKSAccessToken {
             'token_format'  = "opaque"
         } 
     }
-    process
-    { #    client_id=app&client_secret=appclientsecret&grant_type=refresh_token&token_format=opaque&refresh_token=9655f63edf2e476ebb6abea944111590-r 
+    process {
+        #    client_id=app&client_secret=appclientsecret&grant_type=refresh_token&token_format=opaque&refresh_token=9655f63edf2e476ebb6abea944111590-r 
         try {  
             if ($Global:SkipCertificateCheck) {            
                 $Response = Invoke-RestMethod -SkipCertificateCheck `
@@ -362,7 +362,7 @@ function Remove-PKSclusters {
     end { Write-Output $Response }
 }
 
-function Update-PKSclusters {
+function Set-PKSclusters {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true, ParameterSetName = 'name', ValueFromPipelineByPropertyName = $true)]
@@ -546,7 +546,10 @@ function Invoke-PKSapirequest {
         [Parameter(Mandatory = $false, ParameterSetName = 'default')]
         [Parameter(Mandatory = $true, ParameterSetName = 'infile')]
         [ValidateSet('Get', 'Delete', 'Put', 'Post', 'Patch')]
-        $Method = 'Get',
+        $Method,
+        [Parameter(Mandatory = $false, ParameterSetName = 'default')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'infile')]
+        $Query,
         [Parameter(Mandatory = $false, ParameterSetName = 'default')]
         [Parameter(Mandatory = $false, ParameterSetName = 'infile')]
         $ContentType = 'application/json', 
@@ -556,12 +559,14 @@ function Invoke-PKSapirequest {
         $InFile
     )
     if ($Global:PKS_API_Headers) {
+        $Headers = $Global:PKS_API_Headers
+        Write-Verbose ($Headers | Out-String)
         Write-Verbose "==> Calling $uri"
         $Parameters = @{
             UseBasicParsing = $true 
             Uri             = $Uri
             Method          = $Method
-            Headers         = $Global:PKS_API_Headers
+            Headers         = $Headers
             ContentType     = $ContentType
         }
         switch ($PsCmdlet.ParameterSetName) {    
@@ -572,6 +577,11 @@ function Invoke-PKSapirequest {
                 if ($Body) {
                     $Parameters.Add('body', $body)
                 }
+                if ($query) {
+                    $Parameters.Add('body', $query)
+                    Write-Verbose $Query | Out-String
+                }
+
             }
         }
         if ($Global:SkipCertificateCheck) {
@@ -649,9 +659,9 @@ function Disconnect-PKSsession {
     $METHOD = "GET"
     $URI = "$($Global:PKS_API_BaseUri):8443/logout.do"
     $Parameters = @{
-        Uri             = $Uri
-        Method          = $Method
-        Headers         = $headers
+        Uri     = $Uri
+        Method  = $Method
+        Headers = $headers
     }
 
     if ($Global:SkipCertificateCheck) {
@@ -754,6 +764,7 @@ function Set-PKSquotas {
         [Parameter(Mandatory = $false)][ValidateSet('v1beta1')]$apiVersion = 'v1beta1'
     )
     begin {
+        $Response = @()
         $METHOD = "PATCH"
         $Myself = $MyInvocation.MyCommand.Name.Substring(7)
         $BODY = @{
@@ -770,3 +781,227 @@ function Set-PKSquotas {
     }    
     end { Write-Output $Response }
 }   
+
+function New-PKSuaaUser {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [string][alias('user', 'un')]$username,
+        [Parameter(Mandatory = $true, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [string][alias('mail', 'em')]$email,
+        [Parameter(Mandatory = $false, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [securestring][alias('pass', 'pw')]$SecurePassword,
+        [Parameter(Mandatory = $false, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [string]$familyname,
+        [Parameter(Mandatory = $false, ParameterSetName = 'name',
+            ValueFromPipelineByPropertyName = $true)]
+        [string]$givenname
+    )
+    begin {
+        $Response = @()
+        $METHOD = "POST"
+    }
+    process {
+        if (!$SecurePassword) {
+            $SecurePassword = Read-Host -Prompt "Password for user $username" -AsSecureString 
+        }
+        $Credentials = New-Object System.Management.Automation.PSCredential($username, $Securepassword)
+        $Password = ($Credentials.GetNetworkCredential()).password
+        if (!$familyName) {
+            $familyname = $username
+        }
+        $BODY = @{
+            "username" = $username
+            "name"     = @{
+                "familyName" = $familyname
+                "givenName"  = $givenname
+            }                
+            "emails"   = @(
+                @{
+                    "primary" = "true"
+                    "value"   = $email
+                }
+            )
+            "password" = $password
+        } | ConvertTo-Json    	
+        write-verbose ($body | Out-String)
+        $URI = "$($Global:PKS_API_BaseUri):8443/Users"
+        $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD -Body $BODY | ConvertFrom-Json
+    }    
+    end { Write-Output $Response }
+} 
+
+# b7975672-075c-49bf-8d63-ce81653a49bf
+Function Set-PKSUaaGroupMember {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false, ParameterSetName = 'uname', ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'uid', ValueFromPipelineByPropertyName = $true)]
+        [string][alias('id')]$userid,
+        [Parameter(Mandatory = $false, ParameterSetName = 'uid', ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'uname', ValueFromPipelineByPropertyName = $true)]
+        [string][alias('user')]$username,
+        [Parameter(Mandatory = $false, ParameterSetName = 'uid', ValueFromPipelineByPropertyName = $true)]
+        [object[]]$schemas,
+        [Parameter(Mandatory = $true, ParameterSetName = 'uid', ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'uname', ValueFromPipelineByPropertyName = $true)]
+        [ValidateSet('pks.clusters.admin', 'pks.clusters.manage')]
+        [string[]]$scopes
+    )
+    begin {
+        $Response = @()
+        $METHOD = "get"
+    }
+    process {
+        switch ($PSCmdlet.ParameterSetName) {
+            'uname' {
+                $UserID = (Get-PKSUaaUsers -username $username).id
+            }
+        }
+        foreach ($Scope in $Scopes) {
+            $body = @()
+            $Query = @{
+                'scheme' = "openid"
+                'filter' = "displayName Eq `"$scope`""
+            } 
+            $GroupID = (Get-PKSUaaGroups -displayName $Scope).id
+            $URI = "$($GLOBAL:PKS_API_BaseUri):8443/Groups/$GroupID/members"  
+            $BODY = @{  
+                "origin" = "uaa"
+                "type"   = "USER"
+                "value"  = "$UserID"
+            } | ConvertTo-Json
+            $Response += Invoke-PKSapirequest -uri $URI -Method Post -ContentType "application/json" -Body $body | ConvertFrom-Json
+
+        }
+    }    
+    end { Write-Output $Response }
+} 
+
+function Get-PKSUaaUsers {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false, ParameterSetName = 'name',ValueFromPipelineByPropertyName = $true)]
+        [string][alias('name')]$username,
+        [Parameter(Mandatory = $false, ParameterSetName = 'id',ValueFromPipelineByPropertyName = $true)]
+        [string][alias('userid')]$id
+    )
+    begin {
+        $Response = @()
+        $METHOD = "get"
+    }
+    process {
+        $Query = @()
+        if ($username) {
+            $Query = @{
+                'scheme' = "openid"
+                'filter' = "userName Eq `"$username`""
+            } 
+        }
+        if ($id) {
+            $Query = @{
+                'scheme' = "openid"
+                'filter' = "id Eq `"$id`""
+            } 
+        }
+        $URI = "$($GLOBAL:PKS_API_BaseUri):8443/Users"
+        $Response += (Invoke-PKSapirequest -uri $URI -Method Get  -ContentType "application/json" -Query $Query | ConvertFrom-Json).resources
+    }    
+    end { Write-Output $Response }
+} 
+
+
+
+function Remove-PKSUaaUsers {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, ParameterSetName = 'name',ValueFromPipelineByPropertyName = $false)]
+        [string][alias('name')]$username,
+        [Parameter(Mandatory = $true, ParameterSetName = 'uid',ValueFromPipelineByPropertyName = $true)]
+        [string][alias('userid')]$id,
+        [Parameter(Mandatory = $false, ParameterSetName = 'uid', ValueFromPipelineByPropertyName = $true)]
+        [object[]]$schemas
+
+    )
+    begin {
+        $Response = @()
+        $METHOD = "Delete"
+    }
+    process {
+        if ($username) {
+            $id = (Get-PKSUaaUsers -username $username).id
+            } 
+
+        $URI = "$($GLOBAL:PKS_API_BaseUri):8443/Users/$id"
+        $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD  -ContentType "application/json"  | ConvertFrom-Json
+    }    
+    end { Write-Output $Response }
+} 
+
+function Get-PKSUaaClients {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false, ParameterSetName = 'ID',
+            ValueFromPipelineByPropertyName = $true)]
+        [string][alias('id')]$ClientID
+    )
+    begin {
+        $Response = @()
+        $METHOD = "get"
+    }
+    process {
+        $Query = @()
+        if ($username) {
+            $Query = @{
+                'scheme' = "openid"
+                'filter' = "userName Eq `"$ClientID`""
+            } 
+        }
+        $URI = "$($GLOBAL:PKS_API_BaseUri):8443/oauth/clients"
+        $Response += (Invoke-PKSapirequest -uri $URI -Method Get  -ContentType "application/json" -Query $Query | ConvertFrom-Json).resources
+    }    
+    end { 
+        Write-Output $Response 
+    }
+} 
+
+
+function Get-PKSUaaGroups {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false, ParameterSetName = 'displayName',
+            ValueFromPipelineByPropertyName = $true)]
+        [string][alias('GroupName')]$displayName,
+        [Parameter(Mandatory = $false, ParameterSetName = 'id',
+            ValueFromPipelineByPropertyName = $true)]
+        [string][alias('GroupID')]$id     
+    )
+    begin {
+        $Response = @()
+        $METHOD = "get"
+    }
+    process {
+        $Query = @()
+        if ($id) {
+            $Query = @{
+                'scheme' = "openid"
+                'filter' = "id Eq `"$id`""
+            } 
+        }
+        if ($displayName) {
+            $Query = @{
+                'scheme' = "openid"
+                'filter' = "displayName Eq `"$displayName`""
+            } 
+        }
+        $URI = "$($GLOBAL:PKS_API_BaseUri):8443/Groups"
+        $Response += (Invoke-PKSapirequest -uri $URI -Method Get  -ContentType "application/json" -Query $Query | ConvertFrom-Json).resources
+    }    
+    end { 
+        Write-Output $Response 
+    }
+} 
