@@ -785,15 +785,15 @@ function Set-PKSquotas {
 function New-PKSuaaUser {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true, ParameterSetName = 'name',ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'name', ValueFromPipelineByPropertyName = $true)]
         [string][alias('user', 'un')]$username,
-        [Parameter(Mandatory = $true, ParameterSetName = 'name',ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'name', ValueFromPipelineByPropertyName = $true)]
         [string][alias('mail', 'em')]$email,
-        [Parameter(Mandatory = $false, ParameterSetName = 'name',ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'name', ValueFromPipelineByPropertyName = $true)]
         [securestring][alias('pass', 'pw')]$SecurePassword,
-        [Parameter(Mandatory = $false, ParameterSetName = 'name',ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'name', ValueFromPipelineByPropertyName = $true)]
         [string]$familyname,
-        [Parameter(Mandatory = $false, ParameterSetName = 'name',ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'name', ValueFromPipelineByPropertyName = $true)]
         [string]$givenname,
         [Parameter(Mandatory = $false, ParameterSetName = 'name', ValueFromPipelineByPropertyName = $true)]
         [ValidateSet('pks.clusters.admin', 'pks.clusters.manage')]
@@ -829,7 +829,7 @@ function New-PKSuaaUser {
         write-verbose ($body | Out-String)
         $URI = "$($Global:PKS_API_BaseUri):8443/Users"
         $MyResponse += Invoke-PKSapirequest -uri $URI -Method $METHOD -Body $BODY | ConvertFrom-Json
-        if ($scopes){
+        if ($scopes) {
             $Membership = Set-PKSUaaGroupMember -userid $MyResponse.id -scopes $scopes
             $MyResponse = Get-PKSUaaUsers -userid $MyResponse.id
         }
@@ -888,9 +888,9 @@ Function Set-PKSUaaGroupMember {
 function Get-PKSUaaUsers {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $false, ParameterSetName = 'name',ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'name', ValueFromPipelineByPropertyName = $true)]
         [string][alias('name')]$username,
-        [Parameter(Mandatory = $false, ParameterSetName = 'id',ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'id', ValueFromPipelineByPropertyName = $true)]
         [string][alias('userid')]$id
     )
     begin {
@@ -917,14 +917,42 @@ function Get-PKSUaaUsers {
     end { Write-Output $Response }
 } 
 
-
+function Set-PKSUaaUserPassword {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true)]
+        [string][alias('name')]$username,
+        [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true)]
+        [string][alias('userid')]$id
+    )
+    begin {
+        $Response = @()
+        $METHOD = "PUT"
+    }
+    process {
+        if ($username) {
+            $id = (Get-PKSUaaUsers -username $username).id
+        } 
+            
+        $SecurePassword = Read-Host -Prompt "Please enter New Password:" -AsSecureString
+        $Credentials = New-Object System.Management.Automation.PSCredential('dummy', $Securepassword)
+        $Password = ($Credentials.GetNetworkCredential()).password
+    
+        $Body = @{
+            "password" = "$password"
+        }|ConvertTo-Json
+        $URI = "$($GLOBAL:PKS_API_BaseUri):8443/Users/$ID/password"
+        $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD  -ContentType "application/json" -Body $Body 
+    }    
+    end { Write-Output $Response }
+} 
 
 function Remove-PKSUaaUsers {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true, ParameterSetName = 'name',ValueFromPipelineByPropertyName = $false)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'name', ValueFromPipelineByPropertyName = $false)]
         [string][alias('name')]$username,
-        [Parameter(Mandatory = $true, ParameterSetName = 'uid',ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'uid', ValueFromPipelineByPropertyName = $true)]
         [string][alias('userid')]$id,
         [Parameter(Mandatory = $false, ParameterSetName = 'uid', ValueFromPipelineByPropertyName = $true)]
         [object[]]$schemas
@@ -937,10 +965,10 @@ function Remove-PKSUaaUsers {
     process {
         if ($username) {
             $id = (Get-PKSUaaUsers -username $username).id
-            } 
+        } 
 
         $URI = "$($GLOBAL:PKS_API_BaseUri):8443/Users/$id"
-        $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD  -ContentType "application/json"  | ConvertFrom-Json
+        $Response += Invoke-PKSapirequest -uri $URI -Method $METHOD  -ContentType "application/json" | ConvertFrom-Json
     }    
     end { Write-Output $Response }
 } 
