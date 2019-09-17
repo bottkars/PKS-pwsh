@@ -30,7 +30,6 @@ function Unblock-PKSSSLCerts {
 function Connect-PKSapiEndpoint {
     [CmdletBinding()]
     param(
-        # the refres token provided from your Pivotal Net Profile
         [Parameter(Mandatory = $false, ParameterSetName = 'User', ValueFromPipelineByPropertyName = $true)]
         [pscredential]$PKS_API_Credentials = $Global:PKS_API_Credentials,
         [Parameter(Mandatory = $true, ParameterSetName = 'User')]
@@ -46,7 +45,8 @@ function Connect-PKSapiEndpoint {
         [Parameter(Mandatory = $True, ParameterSetName = 'SSO')]
         [switch]$SSO,
         [Parameter(Mandatory = $false, ParameterSetName = 'SSO')]
-        [string]$SSOToken
+        [string]$SSOToken,
+        [switch]$force
     )
     Begin {
         if ($trustCert.IsPresent) {
@@ -58,7 +58,13 @@ function Connect-PKSapiEndpoint {
             }
             
         }  
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12  
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
+        if ($force.IsPresent){
+            Remove-Variable PKS_API_Headers -ErrorAction SilentlyContinue
+            Remove-Variable PKS_API_Headers -ErrorAction SilentlyContinue
+            Remove-Variable PKS_API_ClientCredentials -ErrorAction SilentlyContinue
+            Remove-Variable PKS_API_Credentials -ErrorAction SilentlyContinue
+        }
         $clientid = 'pks_cli:'
         $client_encoded = [System.Text.Encoding]::UTF8.GetBytes($clientid)
         $client_base64 = [System.Convert]::ToBase64String($client_encoded)
@@ -652,6 +658,10 @@ function Disconnect-PKSsession {
         $Parameters.Add('SkipCertificateCheck', $True)
     }
     Invoke-RestMethod @Parameters
+    Remove-Variable PKS_API_Headers -ErrorAction SilentlyContinue
+    Remove-Variable PKS_API_Headers -ErrorAction SilentlyContinue
+    Remove-Variable PKS_API_ClientCredentials -ErrorAction SilentlyContinue
+    Remove-Variable PKS_API_Credentials -ErrorAction SilentlyContinue
 }
 
 function Get-PKSquotas {
