@@ -34,7 +34,7 @@ $connection=Connect-PKSapiEndpoint -PKS_API_URI https://api.pksazure.labbuildr.c
 
 Getting a list of PKS Clusters:
 ```Powershell
-Get-PKSClustres
+Get-PKSClusters
 ````
 
 
