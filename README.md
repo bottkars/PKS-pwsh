@@ -5,7 +5,7 @@ This is a powershell module for Managging Pivotal Enterprise Container Service (
 The Modules connect directly to the PKS API and are written in Powershell.
 This is an unofficial, community-build module 
 
-![pws-pks1](https://user-images.githubusercontent.com/8255007/65012052-123ce780-d916-11e9-9026-f9058c1c0128.gif)
+![pws-pks2](https://user-images.githubusercontent.com/8255007/65012303-1e757480-d917-11e9-93e5-7205bd6bf175.gif)
 
 ## naming conventions
 command names are derived from the REST API Endpints and Powershell verb´s conventions
